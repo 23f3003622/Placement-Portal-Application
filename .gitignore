@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+venv/
+env/
+
+# SQLite
+*.db
+
+# VS Code
+.vscode/
+
+# Redis
+dump.rdb
+
+# Python cache
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Logs
+*.log

@@ -1,2 +1,36 @@
-# Placement-Portal-Application
-Institutes require efficient systems to manage campus recruitment activities involving companies and students. Currently, many institutes rely on spreadsheets, emails, or manual coordination, which makes it difficult to manage company approvals, placement drives, student registrations, and application tracking.
+# \# Placement Portal Application V2
+
+# 
+
+# A web application for managing campus placements.
+
+# 
+
+# \## Technologies
+
+# 
+
+# \- Flask
+
+# \- Vue.js
+
+# \- Bootstrap
+
+# \- SQLite
+
+# \- Redis
+
+# \- Celery
+
+# 
+
+# \## Features
+
+# 
+
+# \- Student Portal
+
+# \- Company Portal
+
+# \- Admin Portal
+
