@@ -1,36 +1,12 @@
-# \# Placement Portal Application V2
+# Placement Portal Application (PPA)
 
-# 
+A web-based Placement Portal Application developed using Flask, Vue.js, SQLite, Redis, and Celery.
 
-# A web application for managing campus placements.
+## Features
 
-# 
-
-# \## Technologies
-
-# 
-
-# \- Flask
-
-# \- Vue.js
-
-# \- Bootstrap
-
-# \- SQLite
-
-# \- Redis
-
-# \- Celery
-
-# 
-
-# \## Features
-
-# 
-
-# \- Student Portal
-
-# \- Company Portal
-
-# \- Admin Portal
-
+- Admin Portal
+- Company Portal
+- Student Portal
+- Placement Drives
+- Application Management
+- Authentication & Authorization

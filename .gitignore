@@ -1,29 +1,35 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-
 # Virtual Environment
 venv/
 env/
 
-# SQLite
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Database
+instance/
 *.db
+
+# Environment Variables
+.env
 
 # VS Code
 .vscode/
 
+# Vue
+node_modules/
+dist/
+
 # Redis
 dump.rdb
 
-# Python cache
-.pytest_cache/
+# Logs
+*.log
 
 # macOS
 .DS_Store
 
 # Windows
 Thumbs.db
-
-# Logs
-*.log
