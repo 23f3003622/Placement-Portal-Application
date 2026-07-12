@@ -74,6 +74,11 @@ class Company(db.Model):
         default="Pending"
     )
 
+    status = db.Column(
+    db.String(20),
+    default="Active"
+)
+
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow
@@ -126,6 +131,11 @@ class Student(db.Model):
     placement_status = db.Column(
         db.String(30),
         default="Not Placed"
+    )
+
+    status = db.Column(
+    db.String(20),
+    default="Active"
     )
 
     created_at = db.Column(

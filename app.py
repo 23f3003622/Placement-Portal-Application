@@ -234,12 +234,38 @@ def admin_profile():
 
     }), 200
 
+# Dashboard Statistics
+
+@app.route("/api/admin/dashboard", methods=["GET"])
+@jwt_required()
+def admin_dashboard():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    total_students = Student.query.count()
+    total_companies = Company.query.count()
+    total_jobs = JobPosition.query.count()
+    total_applications = Application.query.count()
+
+    return jsonify({
+        "total_students": total_students,
+        "total_companies": total_companies,
+        "total_jobs": total_jobs,
+        "total_applications": total_applications
+    }), 200
+
+
 # Approve Company
 @app.route("/api/admin/approve-company/<int:company_id>", methods=["PUT"])
 @jwt_required()
 def approve_company(company_id):
 
-    current_user = User.query.get(get_jwt_identity())
+    current_user = User.query.get(int(get_jwt_identity()))
 
     if current_user.role != "admin":
         return jsonify({
@@ -261,7 +287,280 @@ def approve_company(company_id):
         "message": "Company approved successfully."
     }), 200
 
+# Get All Companies
+@app.route("/api/admin/companies", methods=["GET"])
+@jwt_required()
+def get_companies():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    companies = Company.query.filter_by(
+    approval_status="Pending").all()
+
+    data = []
+
+    for company in companies:
+        data.append({
+            "id": company.id,
+            "company_name": company.company_name,
+            "industry": company.industry,
+            "location": company.location,
+            "approval_status": company.approval_status
+        })
+
+    return jsonify(data), 200
+
+# Search Companies
+@app.route("/api/admin/search-companies", methods=["GET"])
+@jwt_required()
+def search_companies():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({"message": "Access denied"}), 403
+
+    keyword = request.args.get("q", "")
+
+    companies = Company.query.filter(
+        (Company.company_name.ilike(f"%{keyword}%")) |
+        (Company.industry.ilike(f"%{keyword}%"))
+    ).all()
+
+    data = []
+
+    for company in companies:
+        data.append({
+            "id": company.id,
+            "company_name": company.company_name,
+            "industry": company.industry,
+            "location": company.location,
+            "approval_status": company.approval_status
+        })
+
+    return jsonify(data), 200
+
+# Blacklist Company
+@app.route("/api/admin/blacklist-company/<int:company_id>", methods=["PUT"])
+@jwt_required()
+def blacklist_company(company_id):
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    company = Company.query.get(company_id)
+
+    if not company:
+        return jsonify({
+            "message": "Company not found"
+        }), 404
+
+    company.status = "Blacklisted"
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Company blacklisted successfully"
+    }), 200
+
+# Get All Students
+@app.route("/api/admin/students", methods=["GET"])
+@jwt_required()
+def get_students():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    students = Student.query.all()
+
+    data = []
+
+    for student in students:
+        data.append({
+            "id": student.id,
+            "full_name": student.full_name,
+            "branch": student.branch,
+            "year": student.year,
+            "cgpa": student.cgpa
+        })
+
+    return jsonify(data), 200
+
+# Search Students
+@app.route("/api/admin/search-students", methods=["GET"])
+@jwt_required()
+def search_students():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    keyword = request.args.get("q", "")
+
+    students = Student.query.filter(
+        (Student.full_name.ilike(f"%{keyword}%")) |
+        (Student.branch.ilike(f"%{keyword}%"))
+    ).all()
+
+    data = []
+
+    for student in students:
+        data.append({
+            "id": student.id,
+            "full_name": student.full_name,
+            "branch": student.branch,
+            "year": student.year,
+            "cgpa": student.cgpa
+        })
+
+    return jsonify(data), 200
+
+# Blacklist Student
+@app.route("/api/admin/blacklist-student/<int:student_id>", methods=["PUT"])
+@jwt_required()
+def blacklist_student(student_id):
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    student = Student.query.get(student_id)
+
+    if not student:
+        return jsonify({
+            "message": "Student not found"
+        }), 404
+
+    student.status = "Blacklisted"
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student blacklisted successfully"
+    }), 200
+
 # Create Placement Drive
+
+# Get All Job Postings
+@app.route("/api/admin/jobs", methods=["GET"])
+@jwt_required()
+def get_jobs():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    jobs = JobPosition.query.all()
+
+    data = []
+
+    for job in jobs:
+
+        company = Company.query.get(job.company_id)
+
+        data.append({
+
+            "id": job.id,
+            "title": job.title,
+            "company": company.company_name if company else "Unknown",
+            "location": job.location,
+            "deadline": job.application_deadline
+
+        })
+
+    return jsonify(data), 200
+
+# Delete Job Posting
+@app.route("/api/admin/delete-job/<int:job_id>", methods=["DELETE"])
+@jwt_required()
+def delete_job(job_id):
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    job = JobPosition.query.get(job_id)
+
+    if not job:
+        return jsonify({
+            "message": "Job not found"
+        }), 404
+
+    db.session.delete(job)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Job deleted successfully"
+    }), 200
+
+# Get All Applications
+@app.route("/api/admin/applications", methods=["GET"])
+@jwt_required()
+def get_applications():
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    applications = Application.query.all()
+
+    data = []
+
+    for application in applications:
+
+        student = Student.query.get(application.student_id)
+        job = JobPosition.query.get(application.job_id)
+
+        company_name = ""
+
+        if job:
+            company = Company.query.get(job.company_id)
+            if company:
+                company_name = company.company_name
+
+        data.append({
+
+            "id": application.id,
+
+            "student": student.full_name if student else "Unknown",
+
+            "drive": job.title if job else "Unknown",
+
+            "company": company_name,
+
+            "date": application.application_date
+
+        })
+
+    return jsonify(data), 200
 
 # ==================== COMPANY ROUTES ====================
 
