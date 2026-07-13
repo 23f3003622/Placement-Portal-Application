@@ -127,6 +127,7 @@ class Student(db.Model):
     skills = db.Column(db.Text)
 
     resume = db.Column(db.String(255))
+    experience = db.Column(db.Text)
 
     placement_status = db.Column(
         db.String(30),
@@ -178,6 +179,10 @@ class JobPosition(db.Model):
     description = db.Column(db.Text)
 
     salary = db.Column(db.Float)
+
+    experience_required = db.Column(db.String(100))
+
+    benefits = db.Column(db.Text)
 
     location = db.Column(db.String(150))
 
@@ -239,7 +244,9 @@ class Application(db.Model):
         default="Applied"
     )
 
-    remarks = db.Column(db.Text)
+    remarks = db.Column(
+    db.Text
+)
 
     placement = db.relationship(
         "Placement",
@@ -247,6 +254,14 @@ class Application(db.Model):
         uselist=False,
         cascade="all, delete-orphan"
     )
+
+    interview = db.relationship(
+    "Interview",
+    backref="application",
+    uselist=False,
+    cascade="all, delete-orphan"
+)
+    
 
     def __repr__(self):
         return f"<Application {self.id}>"
@@ -293,3 +308,40 @@ class Placement(db.Model):
 
     def __repr__(self):
         return f"<Placement {self.id}>"
+    
+
+#interview
+
+class Interview(db.Model):
+    __tablename__ = "interviews"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    application_id = db.Column(
+        db.Integer,
+        db.ForeignKey("applications.id"),
+        nullable=False
+    )
+
+    interview_date = db.Column(db.Date)
+
+    interview_time = db.Column(db.Time)
+
+    interview_mode = db.Column(db.String(20))
+    # Online / In-Person
+
+    interview_link = db.Column(db.String(255))
+
+    interview_location = db.Column(db.String(255))
+
+    notes = db.Column(db.Text)
+
+    status = db.Column(
+        db.String(20),
+        default="Scheduled"
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
