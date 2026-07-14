@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_caching import Cache
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import (
@@ -8,6 +9,7 @@ from flask_jwt_extended import (
     jwt_required,
     get_jwt_identity
 )
+
 
 import config
 from models import (
@@ -18,10 +20,14 @@ from models import (
     JobPosition,
     Application,
     Placement,
-     Interview
+    Interview
 )
 
+
+
 app = Flask(__name__)
+
+
 
 # Configuration
 app.config["SECRET_KEY"] = config.SECRET_KEY
@@ -30,6 +36,24 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = config.SQLALCHEMY_TRACK_MODIFICAT
 app.config["JWT_SECRET_KEY"] = config.JWT_SECRET_KEY
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = config.JWT_ACCESS_TOKEN_EXPIRES
 app.config["DEBUG"] = config.DEBUG
+
+app.config["CACHE_TYPE"] = "RedisCache"
+app.config["CACHE_REDIS_URL"] = "redis://localhost:6379/0"
+app.config["CACHE_REDIS_HOST"] = "localhost"
+app.config["CACHE_REDIS_PORT"] = 6379
+app.config["CACHE_DEFAULT_TIMEOUT"] = 300
+cache = Cache(app)
+
+from flask_mail import Mail
+
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = "shriyakuhu534@gmail.com"
+app.config["MAIL_PASSWORD"] = "fgvecosaodcdshgf"
+
+mail = Mail(app)
+
 
 # Extensions
 db.init_app(app)
@@ -54,6 +78,32 @@ def expired_token_callback(jwt_header, jwt_payload):
     return jsonify({"message": "Token expired"}), 401
 
 # ==================== AUTH ROUTES ====================
+
+@app.route("/api/export-applications", methods=["POST"])
+@jwt_required()
+def export_applications():
+
+    from tasks import export_applications_csv
+
+
+    user_id = get_jwt_identity()
+
+    student = Student.query.filter_by(
+        user_id=user_id
+    ).first()
+
+    if not student:
+        return jsonify({
+            "message": "Student not found"
+        }), 404
+
+    export_applications_csv.delay(student.id)
+
+    return jsonify({
+        "message": "Export started successfully. You will receive an email once the CSV is generated."
+    }), 200
+
+
 
 # Register Student
 
@@ -113,6 +163,8 @@ def register_student():
     db.session.add(student)
     db.session.commit()
 
+    cache.clear()
+
     return jsonify({
         "message": "Student registered successfully"
     }), 201
@@ -158,6 +210,7 @@ def register_company():
 
     db.session.add(user)
     db.session.commit()
+   
 
     # Create company profile
     company = Company(
@@ -174,6 +227,7 @@ def register_company():
 
     db.session.add(company)
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Company registered successfully. Waiting for admin approval."
@@ -284,6 +338,7 @@ def admin_profile():
 
 @app.route("/api/admin/dashboard", methods=["GET"])
 @jwt_required()
+@cache.cached(timeout=60)
 def admin_dashboard():
 
     current_user = User.query.get(int(get_jwt_identity()))
@@ -306,6 +361,25 @@ def admin_dashboard():
         "total_jobs": total_jobs,
         "total_applications": total_applications
     }), 200
+
+@app.route("/api/admin/company/<int:id>")
+@jwt_required()
+def company_details(id):
+
+    company = Company.query.get_or_404(id)
+
+    return jsonify({
+
+        "id": company.id,
+        "company_name": company.company_name,
+        "industry": company.industry,
+        "website": company.website,
+        "location": company.location,
+        "description": company.description,
+        "hr_name": company.hr_name,
+        "hr_email": company.hr_email
+
+    })
 
 
 # Approve Company
@@ -330,6 +404,7 @@ def approve_company(company_id):
     company.approval_status = "Approved"
 
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Company approved successfully."
@@ -391,6 +466,7 @@ def pending_companies():
 # Search Companies
 @app.route("/api/admin/search-companies", methods=["GET"])
 @jwt_required()
+@cache.cached(timeout=120,query_string=True)
 def search_companies():
 
     current_user = User.query.get(int(get_jwt_identity()))
@@ -441,8 +517,13 @@ def blacklist_company(company_id):
         }), 404
 
     company.status = "Blacklisted"
+    jobs = JobPosition.query.filter_by(company_id=company.id).all()
+
+    for job in jobs:
+        db.session.delete(job)
 
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Company blacklisted successfully"
@@ -480,6 +561,7 @@ def get_students():
 # Search Students
 @app.route("/api/admin/search-students", methods=["GET"])
 @jwt_required()
+@cache.cached(timeout=120, query_string=True)
 def search_students():
 
     current_user = User.query.get(int(get_jwt_identity()))
@@ -533,6 +615,7 @@ def blacklist_student(student_id):
     student.status = "Blacklisted"
 
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Student blacklisted successfully"
@@ -542,6 +625,7 @@ def blacklist_student(student_id):
 
 # Get All Job Postings
 @app.route("/api/admin/jobs", methods=["GET"])
+@cache.cached(timeout=300)
 @jwt_required()
 def get_jobs():
 
@@ -593,6 +677,7 @@ def delete_job(job_id):
 
     db.session.delete(job)
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Job deleted successfully"
@@ -641,6 +726,73 @@ def get_applications():
         })
 
     return jsonify(data), 200
+
+@app.route("/api/admin/student/<int:student_id>", methods=["GET"])
+@jwt_required()
+def get_student_details(student_id):
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if current_user.role != "admin":
+        return jsonify({
+            "message": "Access denied"
+        }), 403
+
+    student = Student.query.get_or_404(student_id)
+
+    applications = []
+
+    for app in student.applications:
+
+        job = app.job
+
+        company = job.company
+
+        applications.append({
+
+            "application_id": app.id,
+
+            "company": company.company_name,
+
+            "job_title": job.title,
+
+            "status": app.status,
+
+            "remarks": app.remarks,
+
+            "applied_at": app.application_date.strftime("%d-%m-%Y")
+
+        })
+
+    return jsonify({
+
+        "student": {
+
+            "id": student.id,
+
+            "name": student.full_name,
+
+            "branch": student.branch,
+
+            "year": student.year,
+
+            "cgpa": student.cgpa,
+
+            "phone": student.phone,
+
+            "skills": student.skills,
+
+            "experience": student.experience,
+
+            "resume": student.resume,
+
+            "placement_status": student.placement_status
+
+        },
+
+        "applications": applications
+
+    })
 
 # ==================== COMPANY ROUTES ====================
 
@@ -739,6 +891,7 @@ def create_job():
 
     db.session.add(job)
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Drive created successfully",
@@ -769,6 +922,7 @@ def close_job(job_id):
     job.status = "Closed"
 
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Drive Closed Successfully"
@@ -985,7 +1139,7 @@ def update_application_status(application_id):
 
     current_user = User.query.get(int(get_jwt_identity()))
 
-    if current_user.role != "company":
+    if not current_user or current_user.role != "company":
         return jsonify({"message": "Access denied"}), 403
 
     company = Company.query.filter_by(user_id=current_user.id).first()
@@ -1000,39 +1154,11 @@ def update_application_status(application_id):
 
     data = request.get_json()
 
-    application.status = data.get("status")
-    application.remarks = data.get("remarks")
-
-    # Save interview details only if shortlisted
-    if application.status == "Shortlisted":
-
-        application.interview_type = data.get("interview_type")
-
-        date = data.get("interview_date")
-        if date:
-            application.interview_date = datetime.strptime(
-                date,
-                "%Y-%m-%d"
-            ).date()
-
-        time = data.get("interview_time")
-        if time:
-            application.interview_time = datetime.strptime(
-                time,
-                "%H:%M"
-            ).time()
-
-        application.interview_link = data.get("interview_link")
-        application.interview_location = data.get("interview_location")
-
-    else:
-        application.interview_type = None
-        application.interview_date = None
-        application.interview_time = None
-        application.interview_link = None
-        application.interview_location = None
+    application.status = data.get("status", application.status)
+    application.remarks = data.get("remarks", application.remarks)
 
     db.session.commit()
+    cache.clear()
 
     return jsonify({
         "message": "Application updated successfully"
@@ -1052,6 +1178,7 @@ def complete_job(job_id):
 
     job.status = "Closed"
     db.session.commit()
+    cache.clear()
 
     return jsonify({"message": "Drive marked complete", "id": job.id, "status": job.status}), 200
 
@@ -1178,7 +1305,7 @@ def student_application_details(application_id):
 
     job = JobPosition.query.get(application.job_id)
     company = Company.query.get(job.company_id)
-
+    interview = application.interview
     return jsonify({
 
         "id": application.id,
@@ -1204,7 +1331,7 @@ def student_application_details(application_id):
             "company_name": application.job.company.company_name,
             "location": application.job.company.location,
             "industry": company.industry,
-            "website": application.company.website,
+            "website": application.job.company.website,
             "hr_name": company.hr_name,
             "hr_email": company.hr_email
         },
@@ -1217,22 +1344,12 @@ def student_application_details(application_id):
         },
 
     "interview": {
-
-        "type": application.interview_type,
-
-        "date":
-            application.interview_date.isoformat()
-            if application.interview_date else None,
-
-        "time":
-            application.interview_time.strftime("%H:%M")
-            if application.interview_time else None,
-
-        "link": application.interview_link,
-
-        "location": application.interview_location
-
-    }
+    "type": interview.interview_mode if interview else "",
+    "date": interview.interview_date.isoformat() if interview and interview.interview_date else "",
+    "time": interview.interview_time.strftime("%H:%M") if interview and interview.interview_time else "",
+    "link": interview.interview_link if interview else "",
+    "location": interview.interview_location if interview else ""
+}
 
 
     }), 200
@@ -1259,8 +1376,18 @@ def student_history():
     for application in applications:
 
         job = JobPosition.query.get(application.job_id)
-
         company = Company.query.get(job.company_id)
+
+        interview = application.interview
+
+        if interview:
+            interview_details = (
+                f"{interview.interview_mode} | "
+                f"{interview.interview_date.strftime('%d-%m-%Y')} | "
+                f"{interview.interview_time.strftime('%I:%M %p')}"
+            )
+        else:
+            interview_details = "Not Scheduled"
 
         history.append({
 
@@ -1276,7 +1403,7 @@ def student_history():
 
             "remarks": application.remarks,
 
-            "interview": "In-person"
+            "interview": interview_details
 
         })
 
@@ -1296,6 +1423,7 @@ def student_history():
 
 @app.route("/api/student/search-jobs", methods=["GET"])
 @jwt_required()
+@cache.cached(timeout=120, query_string=True)
 def search_jobs():
 
     user = User.query.get(int(get_jwt_identity()))
@@ -1479,34 +1607,33 @@ def get_student_interviews():
     current_user = User.query.get(int(get_jwt_identity()))
 
     if not current_user or current_user.role != "student":
-        return jsonify({
-            "message": "Access denied"
-        }), 403
+        return jsonify({"message": "Access denied"}), 403
 
     student = Student.query.filter_by(user_id=current_user.id).first()
 
-    if not student:
-        return jsonify({
-            "message": "Student not found"
-        }), 404
-
-    interviews = Application.query.filter(
-        Application.student_id == student.id,
-        Application.status == "Shortlisted",
-        Application.interview_date != None
-    ).all()
+    interviews = (
+        Interview.query
+        .join(Application)
+        .join(JobPosition)
+        .filter(Application.student_id == student.id)
+        .order_by(Interview.interview_date)
+        .all()
+    )
 
     return jsonify([
         {
-            "id": application.id,
-            "company": application.job.company.company_name,
-            "job": application.job.title,
-            "date": application.interview_date.isoformat(),
-            "time": application.interview_time.strftime("%H:%M"),
-            "type": application.interview_type
+            "id": interview.application.id,
+            "company": interview.application.job.company.company_name,
+            "job": interview.application.job.title,
+            "date": interview.interview_date.isoformat() if interview.interview_date else "",
+            "time": interview.interview_time.strftime("%H:%M") if interview.interview_time else "",
+            "type": interview.interview_mode,
+            "link": interview.interview_link,
+            "location": interview.interview_location,
+            "status": interview.status
         }
-        for application in interviews
-    ]), 200
+        for interview in interviews
+    ])
 
 @app.route("/api/company/interviews", methods=["GET"])
 @jwt_required()
@@ -1723,6 +1850,7 @@ def apply_job(job_id):
 
     db.session.add(application)
     db.session.commit()
+    cache.clear()
 
     return jsonify({"message":"Applied Successfully"}),201
 # ==================== MAIN ====================

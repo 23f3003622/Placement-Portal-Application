@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, date
 
 db = SQLAlchemy()
 
@@ -159,7 +159,6 @@ class Student(db.Model):
     def __repr__(self):
         return f"<Student {self.full_name}>"
 
-
 # ==========================
 # JOB POSITION MODEL
 # ==========================
@@ -253,7 +252,13 @@ class Application(db.Model):
         backref="application",
         uselist=False,
         cascade="all, delete-orphan"
+
     )
+
+    applied_at = db.Column(
+    db.Date,
+    default=date.today
+)
 
     interview = db.relationship(
     "Interview",

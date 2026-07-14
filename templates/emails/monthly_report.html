@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body{
+            font-family: Arial;
+            background:#f5f5f5;
+            padding:20px;
+        }
+
+        .container{
+            background:white;
+            padding:30px;
+            border-radius:10px;
+        }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+        }
+
+        th,td{
+            border:1px solid #ddd;
+            padding:12px;
+            text-align:left;
+        }
+
+        th{
+            background:#1976D2;
+            color:white;
+        }
+
+        h2{
+            color:#1976D2;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Monthly Placement Activity Report</h2>
+
+<p>
+Reporting Month:
+<strong>{{ month_name }}</strong>
+</p>
+
+<table>
+
+<tr>
+<th>Activity</th>
+<th>Count</th>
+</tr>
+
+<tr>
+<td>Placement Drives Conducted</td>
+<td>{{ total_drives }}</td>
+</tr>
+
+<tr>
+<td>Students Applied</td>
+<td>{{ total_applied }}</td>
+</tr>
+
+<tr>
+<td>Students Selected</td>
+<td>{{ total_selected }}</td>
+</tr>
+
+</table>
+
+<br>
+
+<p>
+Generated on:
+{{ generated_date }}
+</p>
+
+</div>
+
+</body>
+</html>
