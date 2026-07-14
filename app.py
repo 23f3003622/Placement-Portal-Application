@@ -171,6 +171,7 @@ def register_student():
 
 # Register Company
 
+
 @app.route("/api/auth/company/register", methods=["POST"])
 def register_company():
 
