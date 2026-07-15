@@ -44,13 +44,14 @@ app.config["CACHE_REDIS_PORT"] = 6379
 app.config["CACHE_DEFAULT_TIMEOUT"] = 300
 cache = Cache(app)
 
-from flask_mail import Mail
+from flask_mail import Mail, Message
 
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
 app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = "shriyakuhu534@gmail.com"
 app.config["MAIL_PASSWORD"] = "fgvecosaodcdshgf"
+app.config["MAIL_DEFAULT_SENDER"] = "shriyakuhu534@gmail.com"
 
 mail = Mail(app)
 
@@ -78,6 +79,61 @@ def expired_token_callback(jwt_header, jwt_payload):
     return jsonify({"message": "Token expired"}), 401
 
 # ==================== AUTH ROUTES ====================
+
+@app.route(
+    "/api/company/applications/<int:application_id>/send-offer",
+    methods=["POST"]
+)
+@jwt_required()
+def send_offer_letter(application_id):
+
+    current_user = User.query.get(int(get_jwt_identity()))
+
+    if not current_user or current_user.role != "company":
+        return jsonify({"message": "Access denied"}), 403
+
+    application = Application.query.get(application_id)
+
+    print("Application:", application)
+
+    if application:
+        print("Status:", application.status)
+        print("Student:", application.student.full_name)
+        print("Student Email:", application.student.user.email)
+
+    if not application:
+        return jsonify({"message": "Application not found"}), 404
+
+    if application.status != "Selected":
+        return jsonify({"message": "Student is not selected"}), 400
+
+    student = application.student
+    company = application.job.company
+
+    msg = Message(
+    subject="Offer Letter",
+    sender="shriyakuhu534@gmail.com",
+    recipients=[student.user.email]
+)
+    
+    msg.body = f"""
+        Congratulations {student.full_name}!
+
+        You have been selected for the position of
+        {application.job.title}
+
+        Company:
+        {company.company_name}
+
+        Regards,
+        HR Team
+        """
+    print(student.user.email)
+    mail.send(msg)
+
+    return jsonify({
+        "message": "Offer letter sent successfully."
+    }), 200
 
 @app.route("/api/export-applications", methods=["POST"])
 @jwt_required()
@@ -1812,7 +1868,55 @@ def schedule_interview(application_id):
         interview.interview_location = data["location"]
         interview.interview_link = None
 
-    db.session.commit()
+        db.session.commit()
+
+    # Send interview email
+
+    student = application.student
+
+    msg = Message(
+        subject="Interview Invitation",
+        sender=app.config["MAIL_USERNAME"],
+        recipients=[student.user.email]
+    )
+
+    msg.body = f"""
+Dear {student.full_name},
+
+Congratulations!
+
+You have been shortlisted for the position of {application.job.title}
+at {company.company_name}.
+
+Interview Details
+
+Date: {interview.interview_date.strftime("%d-%m-%Y")}
+Time: {interview.interview_time.strftime("%I:%M %p")}
+Mode: {interview.interview_mode}
+"""
+
+    if interview.interview_mode == "Online":
+        msg.body += f"""
+
+Meeting Link:
+{interview.interview_link}
+"""
+    else:
+        msg.body += f"""
+
+Venue:
+{interview.interview_location}
+"""
+
+    msg.body += """
+
+Please be available at least 10 minutes before your scheduled interview.
+
+Best Wishes,
+HR Team
+"""
+
+    mail.send(msg)
 
     return jsonify({
         "message": "Interview Scheduled Successfully"

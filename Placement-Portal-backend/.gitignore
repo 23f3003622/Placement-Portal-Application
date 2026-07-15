@@ -33,3 +33,5 @@ dump.rdb
 
 # Windows
 Thumbs.db
+
+celerybeat-schedule*

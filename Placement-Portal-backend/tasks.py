@@ -76,7 +76,13 @@ Best regards,
 Placement Portal
 """
 
-                mail.send(msg)
+                try:
+                    mail.send(msg)
+                    print("Sent to", student.user.email)
+
+                except Exception as e:
+                    print("Failed:", student.user.email)
+                    print(e)
 
                 print(
                     "Email sent to:",
@@ -103,6 +109,8 @@ def send_monthly_activity_report():
         first_day_previous = last_day_previous.replace(day=1)
 
         print("Generating report...")
+
+        '''
 
         # -----------------------------
         # Total Placement Drives
@@ -132,6 +140,18 @@ def send_monthly_activity_report():
             Application.applied_at <= last_day_previous
         ).count()
 
+        '''
+
+        total_drives = JobPosition.query.count()
+        total_applied = Application.query.count()
+        total_selected = Application.query.filter_by(
+                status="Selected"
+            ).count()
+        
+        print("Total Drives:", total_drives)
+        print("Total Applied:", total_applied)
+        print("Total Selected:", total_selected)
+
         html = render_template(
             "emails/monthly_report.html",
 
@@ -149,7 +169,7 @@ def send_monthly_activity_report():
         msg = Message(
             subject="Monthly Placement Activity Report",
             sender="shriyakuhu534@gmail.com",
-            recipients=["admin@gmail.com"]      # Replace with admin email
+            recipients=["admin@gmail.com"]      
         )
 
         msg.html = html

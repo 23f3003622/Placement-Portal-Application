@@ -10,12 +10,6 @@ celery = Celery(
 
 celery.conf.timezone = "Asia/Kolkata"
 
-celery.conf.beat_schedule = {
-    "daily-reminders": {
-        "task": "tasks.send_deadline_reminders",
-        "schedule": crontab(hour=9, minute=0),
-    }
-}
 
 celery.conf.beat_schedule = {
 
@@ -23,7 +17,7 @@ celery.conf.beat_schedule = {
 
         "task": "tasks.send_deadline_reminders",
 
-        "schedule": crontab(hour=9, minute=0),
+        "schedule": crontab(minute="*"),
     },
 
     "monthly-placement-report": {
