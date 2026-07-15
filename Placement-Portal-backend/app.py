@@ -116,6 +116,7 @@ def send_offer_letter(application_id):
     recipients=[student.user.email]
 )
     
+    
     msg.body = f"""
         Congratulations {student.full_name}!
 
