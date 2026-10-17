@@ -74,3 +74,14 @@ celery -A celery_worker.celery beat --loglevel=info
 
 The frontend runs on `localhost:5173` and the Flask API on `localhost:5000`.
 
+## Screenshots
+
+![Screenshot 175](images/Screenshot%20%28175%29.png)
+![Screenshot 176](images/Screenshot%20%28176%29.png)
+![Screenshot 177](images/Screenshot%20%28177%29.png)
+![Screenshot 178](images/Screenshot%20%28178%29.png)
+![Screenshot 179](images/Screenshot%20%28179%29.png)
+![Screenshot 180](images/Screenshot%20%28180%29.png)
+![Screenshot 181](images/Screenshot%20%28181%29.png)
+
+
